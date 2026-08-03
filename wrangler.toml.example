@@ -1,0 +1,21 @@
+# Copiar a wrangler.toml y llenar con los valores propios.
+# wrangler.toml está en .gitignore: contiene el id de tu base y el nombre real
+# de tu worker, que no tienen por qué vivir en el repositorio.
+
+name = "ventas-mi-negocio"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Crear la base primero:
+#   npx wrangler d1 create ventas-mi-negocio
+# y pegar aquí el database_id que imprime el comando.
+[[d1_databases]]
+binding = "DB"
+database_name = "ventas-mi-negocio"
+database_id = "PEGAR-AQUI-EL-ID"
+
+# Los secretos NO van en este archivo. Se cargan aparte, quedan cifrados
+# en Cloudflare y nunca se vuelven a leer en claro:
+#
+#   npx wrangler secret put BOLD_SECRET_KEY   # llave secreta del webhook (panel Bold)
+#   npx wrangler secret put ADMIN_TOKEN       # token del importador de Excel

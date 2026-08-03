@@ -1,0 +1,18 @@
+{
+  "name": "bold-ventas-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dashboard de ventas Bold separadas por datáfono, sobre Cloudflare Workers + D1",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute ventas-mi-negocio --remote --file=./schema.sql",
+    "db:init:local": "wrangler d1 execute ventas-mi-negocio --local --file=./schema.sql",
+    "import": "node scripts/import-report.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0",
+    "xlsx": "^0.18.5"
+  }
+}
