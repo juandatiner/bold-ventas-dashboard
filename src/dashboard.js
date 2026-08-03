@@ -306,6 +306,39 @@ let fechaActual = hoyBogota();
 // refrescar y cambiar de día sin sacar al usuario de donde está.
 let grupoActual = null;
 
+/* ---------------- Estado en la URL ---------------- */
+/*
+ * Recargar la página estando en el detalle de un local debe devolver a ese
+ * detalle, no al resumen. El estado vive en memoria y una recarga lo borra,
+ * así que lo mínimo necesario —día y local abierto— viaja en el hash.
+ * Como efecto secundario, el botón atrás del teléfono también funciona.
+ */
+
+function guardarEnUrl() {
+  const p = new URLSearchParams();
+  p.set('fecha', fechaActual);
+  if (grupoActual) p.set('local', grupoActual);
+  history.replaceState(null, '', location.pathname + '#' + p.toString());
+}
+
+// Devuelve el local que hubiera guardado en la URL, y aplica la fecha.
+function leerDeUrl() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  const fecha = p.get('fecha');
+  // Validar: el hash lo escribe el usuario y puede traer cualquier cosa.
+  if (fecha && /^\\d{4}-\\d{2}-\\d{2}$/.test(fecha) && fecha <= hoyBogota()) {
+    fechaActual = fecha;
+  }
+  return p.get('local');
+}
+
+// Botón atrás del navegador o del teléfono.
+addEventListener('popstate', () => {
+  const grupo = leerDeUrl();
+  if (grupo) abrirDetalle(grupo);
+  else volverAlResumen();
+});
+
 /* ---------------- Resumen ---------------- */
 
 // La barra de fecha vive en el cabezote, encima de ambas vistas.
@@ -318,6 +351,7 @@ function sincronizarBarraFecha() {
 async function cargarResumen() {
   grupoActual = null;
   sincronizarBarraFecha();
+  guardarEnUrl();
   let datos;
   try {
     const r = await fetch('/api/resumen?desde=' + fechaActual + '&hasta=' + fechaActual);
@@ -354,7 +388,11 @@ async function cargarResumen() {
       'Todavía no hay ventas registradas este día.</div>';
 
   document.querySelectorAll('.local').forEach(el => {
-    el.onclick = () => abrirDetalle(el.dataset.grupo);
+    el.onclick = () => {
+      // Entrada nueva en el historial: así el botón atrás vuelve al resumen.
+      history.pushState(null, '', location.pathname + location.hash);
+      abrirDetalle(el.dataset.grupo);
+    };
   });
 }
 
@@ -386,6 +424,7 @@ function tarjeta(f, totalDia) {
 async function abrirDetalle(grupo, nuevo = true) {
   grupoActual = grupo;
   sincronizarBarraFecha();
+  guardarEnUrl();
   $('vista-resumen').classList.add('oculto');
   $('vista-detalle').classList.remove('oculto');
   // En un refresco de fondo no se toca el scroll ni se muestra "Cargando…":
@@ -483,7 +522,10 @@ addEventListener('touchend', e => {
   x0 = null;
 }, { passive: true });
 
-cargarResumen();
+// Arranque: si la URL trae un local, se abre ese detalle directamente.
+const localInicial = leerDeUrl();
+if (localInicial) abrirDetalle(localInicial);
+else cargarResumen();
 
 // Refresco automático solo en el día de hoy, respetando la vista abierta.
 setInterval(() => { if (fechaActual === hoyBogota()) refrescarVista(); }, 60000);
