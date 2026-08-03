@@ -1,4 +1,4 @@
-import { paginaDashboard } from './dashboard.js';
+import { paginaDashboard, iconoSvg } from './dashboard.js';
 
 const ZONA_OFFSET_HORAS = -5; // America/Bogota, sin horario de verano
 
@@ -19,6 +19,15 @@ export default {
       }
       if (ruta === '/api/import' && request.method === 'POST') {
         return await importarLote(request, env);
+      }
+      // Algunos navegadores lo piden directo, sin mirar el <link> del HTML.
+      if (ruta === '/favicon.ico' || ruta === '/favicon.svg') {
+        return new Response(iconoSvg, {
+          headers: {
+            'Content-Type': 'image/svg+xml; charset=utf-8',
+            'Cache-Control': 'public, max-age=86400',
+          },
+        });
       }
       if (ruta === '/salud') {
         return json({ ok: true, hora: new Date().toISOString() });

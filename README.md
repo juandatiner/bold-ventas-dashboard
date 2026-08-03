@@ -190,6 +190,20 @@ datos móviles y mala señal. Cada kilobyte y cada petición extra se notan. El
 patrón de fondo va como SVG embebido en un `data:` URI precisamente para no pedir
 nada a la red.
 
+El favicon sigue la misma idea: en vez de un `.ico` que obliga a una petición
+aparte, el emoji de la marca se arma como SVG en línea.
+
+```js
+const ICONO_SVG =
+  "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>" +
+  "<text x='50' y='52' font-size='76' text-anchor='middle' " +
+  "dominant-baseline='central'>" + ICONO + "</text></svg>";
+```
+
+Va incrustado en el `<head>` como `data:` URI, y además se sirve en
+`/favicon.ico` para los navegadores que lo piden directo sin leer el HTML.
+Cambiar la identidad visual de una instancia es cambiar una constante.
+
 Detalles pensados para uso real en la calle:
 
 - Botones de mínimo 46 px de alto, para el dedo.
@@ -298,6 +312,64 @@ nuevas aparecen en el dashboard y se les pone nombre una sola vez.
 npm run db:init:local
 npm run dev
 ```
+
+---
+
+## Configuración
+
+### Personalizar el negocio
+
+Todo lo visual vive en constantes al inicio de `src/dashboard.js`. No hay archivo
+de configuración aparte ni variables de entorno para esto: son cuatro líneas.
+
+```js
+const NEGOCIO   = 'Mi Negocio';   // título del cabezote y de la pestaña
+const SUBTITULO = 'Ventas';
+const ICONO     = '🛍️';           // favicon y logo del cabezote
+```
+
+Los colores son variables CSS en el bloque `:root` del mismo archivo. Cambiando
+`--acento-texto`, `--acento2-texto` y el degradado de `.cabezote` queda con otra
+identidad. Levantar una segunda instancia para otro negocio es copiar la carpeta,
+cambiar estas constantes, y desplegar con su propia base y sus propios secretos.
+
+### Nombrar los datáfonos
+
+El sistema descubre las terminales solo: la primera venta de un datáfono crea una
+`clave_terminal` nueva (`terminal:XXXX` o `usuario:XXXX`). Hasta que se le ponga
+nombre, esa clave aparece tal cual en el dashboard, marcada con `?`.
+
+Para asignarle un local, se manda la clave con el nombre que debe mostrar:
+
+```bash
+curl -X POST https://TU-WORKER.workers.dev/api/terminales \
+  -H "Content-Type: application/json" \
+  -d '{"clave_terminal":"terminal:ABC123","nombre":"Sede Norte"}'
+```
+
+O directamente en la base:
+
+```bash
+npx wrangler d1 execute mi-base --remote --command \
+  "INSERT INTO locales (clave_terminal, nombre, creado_en)
+   VALUES ('terminal:ABC123','Sede Norte',datetime('now'))
+   ON CONFLICT(clave_terminal) DO UPDATE SET nombre = excluded.nombre"
+```
+
+Para ver qué claves existen y cuántas ventas lleva cada una — útil justo después
+de hacer una venta de prueba en cada local:
+
+```bash
+curl https://TU-WORKER.workers.dev/api/terminales
+```
+
+**Varias claves pueden apuntar al mismo local.** Es intencional: una terminal
+suele generar una clave por webhook (`usuario:<uuid>`) y otra por reporte
+(`reporte:<serial>`). Poniéndole el mismo nombre a ambas, el dashboard las suma
+como un solo local.
+
+Es un procedimiento de una sola vez por datáfono. Después, cada venta cae sola en
+su lugar.
 
 ---
 

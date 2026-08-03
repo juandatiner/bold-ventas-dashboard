@@ -5,6 +5,21 @@
 const NEGOCIO = 'Mi Negocio';
 const SUBTITULO = 'Ventas';
 
+// Icono de la marca: se usa en el cabezote y como favicon. Va como SVG en un
+// data: URI, asi la pestaña tiene icono sin pedir un archivo extra a la red.
+const ICONO = '🛍️';
+
+const ICONO_SVG =
+  "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>" +
+  "<text x='50' y='52' font-size='76' text-anchor='middle' " +
+  "dominant-baseline='central'>" + ICONO + "</text></svg>";
+
+export const iconoSvg = ICONO_SVG;
+
+const ETIQUETAS_ICONO =
+  '<link rel="icon" href="data:image/svg+xml,' + encodeURIComponent(ICONO_SVG) + '">' +
+  '<link rel="apple-touch-icon" href="data:image/svg+xml,' + encodeURIComponent(ICONO_SVG) + '">';
+
 // Patrón de fondo. Va como SVG embebido: sin pedir nada a internet, el
 // celular no gasta datos y carga al instante. Tres tamaños y una rotación
 // suave por figura para que no se vea como cuadrícula repetida.
@@ -194,7 +209,7 @@ const ESTILOS = `
 const CABEZOTE = `
   <div class="cabezote">
     <div class="marca">
-      <span class="icono">&#128717;</span>
+      <span class="icono">${ICONO}</span>
       <div>
         <h1>${NEGOCIO}</h1>
         <div class="sub">${SUBTITULO}</div>
@@ -215,7 +230,7 @@ export function paginaDashboard() {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#c94571">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>${NEGOCIO} · Ventas</title><style>${ESTILOS}</style></head><body>
+<title>${NEGOCIO} · Ventas</title>${ETIQUETAS_ICONO}<style>${ESTILOS}</style></head><body>
 <div class="envoltura">
   ${CABEZOTE}
 
