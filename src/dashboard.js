@@ -302,13 +302,22 @@ const colorDe = n => PALETA[indiceDe(n) % PALETA.length];
 const emojiDe = n => EMOJIS_FIJOS[n] || EMOJIS[indiceDe(n) % EMOJIS.length];
 
 let fechaActual = hoyBogota();
+// Local abierto en el detalle, o null si se está viendo el resumen. Permite
+// refrescar y cambiar de día sin sacar al usuario de donde está.
+let grupoActual = null;
 
 /* ---------------- Resumen ---------------- */
 
-async function cargarResumen() {
+// La barra de fecha vive en el cabezote, encima de ambas vistas.
+function sincronizarBarraFecha() {
   $('fecha').value = fechaActual;
   $('fecha').max = hoyBogota();
   $('manana').disabled = fechaActual >= hoyBogota();
+}
+
+async function cargarResumen() {
+  grupoActual = null;
+  sincronizarBarraFecha();
   let datos;
   try {
     const r = await fetch('/api/resumen?desde=' + fechaActual + '&hasta=' + fechaActual);
@@ -374,11 +383,17 @@ function tarjeta(f, totalDia) {
 
 /* ---------------- Detalle ---------------- */
 
-async function abrirDetalle(grupo) {
+async function abrirDetalle(grupo, nuevo = true) {
+  grupoActual = grupo;
+  sincronizarBarraFecha();
   $('vista-resumen').classList.add('oculto');
   $('vista-detalle').classList.remove('oculto');
-  $('detalle-filas').innerHTML = '<div class="cargando">Cargando…</div>';
-  scrollTo(0, 0);
+  // En un refresco de fondo no se toca el scroll ni se muestra "Cargando…":
+  // el usuario está leyendo la lista, no esperándola.
+  if (nuevo) {
+    $('detalle-filas').innerHTML = '<div class="cargando">Cargando…</div>';
+    scrollTo(0, 0);
+  }
 
   const color = colorDe(grupo);
   $('cabeza-detalle').style.setProperty('--color-local', color);
@@ -417,13 +432,22 @@ function volverAlResumen() {
   cargarResumen();
 }
 
+// Recarga lo que se esté viendo. Del detalle solo se sale con "Volver": ni un
+// refresco, ni cambiar de día, ni un deslizamiento deben sacar al usuario de
+// la lista que está leyendo.
+function refrescarVista() {
+  return grupoActual ? abrirDetalle(grupoActual, false) : cargarResumen();
+}
+
 function moverDia(dias) {
   const d = new Date(fechaActual + 'T12:00:00');
   d.setDate(d.getDate() + dias);
   const nueva = d.toISOString().slice(0, 10);
   if (nueva > hoyBogota()) return; // no se puede ver el futuro
   fechaActual = nueva;
-  volverAlResumen();
+  // Si estaba viendo un local, sigue viendo ese mismo local en el día nuevo.
+  if (grupoActual) abrirDetalle(grupoActual);
+  else cargarResumen();
 }
 
 /* ---------------- Eventos ---------------- */
@@ -431,40 +455,41 @@ function moverDia(dias) {
 $('volver').onclick = volverAlResumen;
 $('ayer').onclick = () => moverDia(-1);
 $('manana').onclick = () => moverDia(1);
-$('hoy').onclick = () => { fechaActual = hoyBogota(); volverAlResumen(); };
+$('hoy').onclick = () => {
+  if (fechaActual === hoyBogota()) return;
+  fechaActual = hoyBogota();
+  if (grupoActual) abrirDetalle(grupoActual);
+  else cargarResumen();
+};
 $('recargar').onclick = () => {
   const b = $('recargar');
   b.disabled = true;
-  cargarResumen().finally(() => { b.disabled = false; });
+  Promise.resolve(refrescarVista()).finally(() => { b.disabled = false; });
 };
 $('fecha').onchange = e => {
   fechaActual = e.target.value > hoyBogota() ? hoyBogota() : e.target.value;
-  volverAlResumen();
+  if (grupoActual) abrirDetalle(grupoActual);
+  else cargarResumen();
 };
 
-// Deslizar el dedo para cambiar de dia.
+// Deslizar el dedo cambia de día, en cualquiera de las dos vistas.
 let x0 = null, y0 = null;
 addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
 addEventListener('touchend', e => {
   if (x0 === null) return;
   const dx = e.changedTouches[0].clientX - x0;
   const dy = e.changedTouches[0].clientY - y0;
-  if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 2) {
-    if (!$('vista-detalle').classList.contains('oculto')) volverAlResumen();
-    else moverDia(dx > 0 ? -1 : 1);
-  }
+  if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 2) moverDia(dx > 0 ? -1 : 1);
   x0 = null;
 }, { passive: true });
 
 cargarResumen();
 
-// Refresco solo mientras miras el dia de hoy en el resumen.
-setInterval(() => {
-  if (fechaActual === hoyBogota() && $('vista-detalle').classList.contains('oculto')) cargarResumen();
-}, 60000);
+// Refresco automático solo en el día de hoy, respetando la vista abierta.
+setInterval(() => { if (fechaActual === hoyBogota()) refrescarVista(); }, 60000);
+// En móvil el temporizador se congela en segundo plano: al volver, refrescar.
 addEventListener('visibilitychange', () => {
-  if (!document.hidden && fechaActual === hoyBogota() &&
-      $('vista-detalle').classList.contains('oculto')) cargarResumen();
+  if (!document.hidden && fechaActual === hoyBogota()) refrescarVista();
 });
 </script>
 </body></html>`;
